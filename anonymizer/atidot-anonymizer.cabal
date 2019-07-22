@@ -35,7 +35,6 @@ library
                  , Atidot.Anonymizer.Watcher
                  , Atidot.Anonymizer.Utils
                  , Atidot.Anonymizer.Run
-                 , Atidot.Anonymizer.Identify
                  , Atidot.Anonymizer.Swagger
   -- other-modules:
   -- other-extensions:
