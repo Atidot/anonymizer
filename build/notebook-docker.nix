@@ -1,10 +1,13 @@
-{ nixpkgs ? import <nixpkgs> {} }:
+{ nixpkgs ? import <nixpkgs> {}
+}:
+
 with nixpkgs;
 let
+  secrets-dir = "/var/.secrets";
   notebook-env = import ./notebook.nix {};
 in
 nixpkgs.dockerTools.buildImage {
-  name = "anonymizer";
+  name = "anonymizer-notebook";
   tag = "latest";
   fromImage = dockerTools.pullImage {
     imageName = "ubuntu";
@@ -24,12 +27,6 @@ nixpkgs.dockerTools.buildImage {
   '';
 
   config = {
-    Entrypoint = [
-        "jupyter-lab" "--allow-root"
-      ];
-    WorkingDir = "/examples";
-    Volumes = {
-      "/examples" = {};
-    };
-  };
+        Entrypoint = [ "jupyter-lab" "--allow-root" ];
+      };
 }

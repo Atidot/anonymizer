@@ -6,5 +6,16 @@ build:
 notebook:
 	nix-shell ${NIX_FLAGS} -A env notebook.nix --command "jupyter lab --notebook-dir=../examples/"
 
-docker:
-	nix-build ${NIX_FLAGS} docker.nix -o docker.tar.gz
+api-server:
+	nix-build ${NIX_FLAGS} api-server-docker.nix -o api-server.tar.gz
+	docker load -i api-server.tar.gz
+
+notebook-docker:
+	nix-build ${NIX_FLAGS} notebook-docker.nix -o notebook-docker.tar.gz
+	docker load -i notebook-docker.tar.gz
+
+swagger:
+	nix-shell ${NIX_FLAGS} default.nix --command "atidot-anonymizer swagger"
+
+shell:
+	nix-shell ${NIX_FLAGS} default.nix
