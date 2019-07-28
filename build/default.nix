@@ -21,4 +21,9 @@ stdenv.mkDerivation rec {
   buildInputs = [
     haskellEnv
   ];
+
+  shellHook =  ''
+                eval $(cat `which ghc` | grep "lib/ghc")
+              '';
+
 }
