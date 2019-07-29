@@ -23,6 +23,7 @@ stdenv.mkDerivation rec {
   ];
 
   shellHook =  ''
+                export LOCALE_ARCHIVE_2_27="${glibcLocales}/lib/locale/locale-archive"
                 eval $(cat `which ghc` | grep "lib/ghc")
               '';
 
