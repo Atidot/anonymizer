@@ -2,25 +2,22 @@
 module Atidot.Anonymizer.Main where
 
 import "base"                 Data.Semigroup ((<>))
---import "base"                 Data.Maybe
+import "base"                 Data.List (isSuffixOf)
 import "filepath"             System.FilePath
 import "directory"            System.Directory
 import "text"                 Data.Text (Text)
 import "optparse-applicative" Options.Applicative
+import "extra"                Control.Monad.Extra
+
 import                        Atidot.Anonymizer.Monad
 import                        Atidot.Anonymizer.Load (load)
 import                        Atidot.Anonymizer.Watcher (watcher)
 import                        Atidot.Anonymizer.Run
 import                        Atidot.Anonymizer.Server (runServer)
 import                        Atidot.Anonymizer.Swagger (printSwagger)
+
 import qualified "bytestring" Data.ByteString.Lazy as BL
 import qualified "bytestring" Data.ByteString.Lazy.Char8 as BL8
-import "extra"                Control.Monad.Extra
-import "base"                 Data.List (isSuffixOf)
-import Debug.Trace
-
-lttrace :: Show a => [Char] -> a -> a
-lttrace x y = trace (x ++ ":" ++ show y) y
 
 data Listener = Listener
     { _listener_key    :: !Text
@@ -62,32 +59,41 @@ data Command
     | C4 Swagger
     | C5 Listener
 
+hashingKeyOpt :: Parser Text
+hashingKeyOpt = strOption
+    ( long "key"
+    <> short 'k'
+    <> metavar "KEY"
+    <> help "Hashing Key"
+    )
+
+outDirOpt :: Parser FilePath
+outDirOpt = strOption
+    ( long "output"
+    <> short 'o'
+    <> metavar  "PATH"
+    <> help "Output Directory"
+    )
+
+scriptOpt :: Parser FilePath
+scriptOpt = strOption
+    ( long "script"
+    <> short 's'
+    <> metavar "PATH"
+    <> help "Anonymizer Script to use"
+    )
+
 runScriptParser :: Parser Command
 runScriptParser = C1 <$> (RunScript
-    <$> strOption
-      ( long "key"
-     <> short 'k'
-     <> metavar "KEY"
-     <> help "Hashing Key"
-      )
+    <$> hashingKeyOpt
     <*> strOption
       ( long "input"
      <> short 'i'
      <> metavar  "PATH"
      <> help "Input File"
       )
-    <*> optional (strOption
-      ( long "output"
-     <> short 'o'
-     <> metavar  "PATH"
-     <> help "Output Directory"
-      ))
-    <*> optional (strOption
-      ( long "script"
-     <> short 's'
-     <> metavar "PATH"
-     <> help "Anonymizer Script to use"
-      ))
+    <*> optional outDirOpt
+    <*> optional scriptOpt
     )
 
 getPathsParser :: Parser Command
@@ -135,30 +141,15 @@ swaggerParser = C4 <$> (Swagger
 
 listenerParser :: Parser Command
 listenerParser = C5 <$> (Listener
-    <$> strOption
-      ( long "key"
-     <> short 'k'
-     <> metavar "KEY"
-     <> help "Hashing Key"
-      )
+    <$> hashingKeyOpt
     <*> strOption
       ( long "input"
      <> short 'i'
      <> metavar  "PATH"
      <> help "Input Directory"
       )
-    <*> strOption
-      ( long "output"
-     <> short 'o'
-     <> metavar  "PATH"
-     <> help "Output Directory"
-      )
-    <*> optional (strOption
-      ( long "script"
-     <> short 's'
-     <> metavar "PATH"
-     <> help "Anonymizer Script to use"
-      ))
+    <*> outDirOpt
+    <*> optional scriptOpt
     )
 
 combined :: Parser Command
@@ -171,7 +162,7 @@ combined = subparser
          )
 
 listen :: Listener -> IO ()
-listen config@(Listener _ inputDir outDir scriptFP) = do
+listen (Listener _ inputDir outDir scriptFP) = do
     unlessM (doesDirectoryExist inputDir) $ error $
         "Annonymizer: Expected directory as input, got: " ++ show inputDir
     unlessM (doesDirectoryExist outDir) $ error $
@@ -179,10 +170,11 @@ listen config@(Listener _ inputDir outDir scriptFP) = do
     script <- loadScript scriptFP
     watcher
         inputDir
-        (listenInternal script config)
+        (listenInternal script)
     where
-        listenInternal script _config filepath =
-          runSingleFile script filepath $ Just outDir
+        listenInternal script filepath = do
+            _ <- runSingleFile script filepath $ Just outDir
+            return ()
 
 getPaths :: GetPaths -> IO ()
 getPaths (GetPaths inputFile) =
@@ -210,22 +202,23 @@ main = do
 
 runScript :: RunScript -> IO ()
 runScript (RunScript _ filepath mOutDir scriptFp) = do
-    _ <- isValidInput filepath
-    _ <- isOutputDir mOutDir
+    verifyInputFile filepath
+    verifyOutputDir mOutDir
     script <- loadScript scriptFp
-    runSingleFile script filepath mOutDir
+    _ <- runSingleFile script filepath mOutDir
+    return ()
 
-runSingleFile :: Anonymizer Text -> FilePath -> Maybe FilePath -> IO ()
+runSingleFile :: Anonymizer Text -> FilePath -> Maybe FilePath -> IO Text
 runSingleFile script filepath mOutfile = do
-    (_,res) <- run script filepath
+    (res,resBS) <- run script filepath
     case mOutfile of
-        Just outDir -> do -- TODO: this can be maybe fmapped
+        Just outDir -> do
             let fExt = takeExtension filepath
                 fName = takeBaseName filepath
                 outFile = outDir </> fName <.> "anon" <.> fExt -- TODO: add date as numerical value
-            BL.writeFile outFile res
-        Nothing -> BL8.putStrLn res
-    return () -- TODO: ask berko about return values
+            BL.writeFile outFile resBS
+        Nothing -> BL8.putStrLn resBS
+    return res
 
 loadScript :: Maybe FilePath -> IO (Anonymizer Text)
 loadScript = maybe (return testScript) load
@@ -237,21 +230,19 @@ isValidFormat fp = (`isSuffixOf` fp) `any` validFormats
 validFormats :: [String]
 validFormats = ["xml","json","csv"]
 
-isValidInput :: FilePath -> IO ()
-isValidInput fp = do
-    let valid = isValidFormat fp
+verifyInputFile :: FilePath -> IO ()
+verifyInputFile fp = do
     exists <- doesFileExist fp
-    unless (exists && valid) $ error $ unlines $
+    unless (exists && isValidFormat fp) $ error $ unlines
         [ "Annonymizer: Input File Error, got: " ++ show fp
         , "Valid formats are: " ++ show validFormats
         ]
-    return ()
 
-isOutputDir :: Maybe FilePath -> IO ()
-isOutputDir (Just outDir)= do
+verifyOutputDir :: Maybe FilePath -> IO ()
+verifyOutputDir (Just outDir)= do
     exists <- doesDirectoryExist outDir
-    unless exists $ error $ unlines $
+    unless exists $ error $ unlines
         [ "Annonymizer: Expected directory as output, got: " ++ show outDir
         , "Valid formats are: " ++ show validFormats
         ]
-isOutputDir _ = return ()
+verifyOutputDir _ = return ()
