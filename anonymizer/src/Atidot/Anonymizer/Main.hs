@@ -1,4 +1,5 @@
 {-# LANGUAGE PackageImports #-}
+{-# LANGUAGE OverloadedStrings #-}
 module Atidot.Anonymizer.Main where
 
 import "base"                 Data.Semigroup ((<>))
@@ -16,18 +17,19 @@ import                        Atidot.Anonymizer.Run
 import                        Atidot.Anonymizer.Server (runServer)
 import                        Atidot.Anonymizer.Swagger (printSwagger)
 
+import qualified "text"       Data.Text.IO as T
 import qualified "bytestring" Data.ByteString.Lazy as BL
 import qualified "bytestring" Data.ByteString.Lazy.Char8 as BL8
 
 data Listener = Listener
-    { _listener_key    :: !Text
+    { _listener_key    :: !FilePath
     , _listener_input  :: !FilePath
     , _listener_output :: !FilePath
     , _listener_script :: !(Maybe FilePath)
     }
 
 data RunScript = RunScript
-    { _runScript_key    :: !Text
+    { _runScript_key    :: !FilePath
     , _runScript_input  :: !FilePath
     , _runScript_output :: !(Maybe FilePath)
     , _runScript_script :: !(Maybe FilePath)
@@ -40,7 +42,7 @@ data GetPaths
 
 data APIServer
     = APIServer
-    { _apiServer_key    :: !Text
+    { _apiServer_key    :: !FilePath
     , _apiServer_port   :: !Int
     , _apiServer_sslCrt :: !FilePath
     , _apiServer_sslKey :: !FilePath
@@ -59,7 +61,7 @@ data Command
     | C4 Swagger
     | C5 Listener
 
-hashingKeyOpt :: Parser Text
+hashingKeyOpt :: Parser FilePath
 hashingKeyOpt = strOption
     ( long "key"
     <> short 'k'
@@ -162,7 +164,8 @@ combined = subparser
          )
 
 listen :: Listener -> IO ()
-listen (Listener _ inputDir outDir scriptFP) = do
+listen (Listener hashKeyFp inputDir outDir scriptFP) = do
+    hashKey <- verifyHashingKey hashKeyFp
     unlessM (doesDirectoryExist inputDir) $ error $
         "Annonymizer: Expected directory as input, got: " ++ show inputDir
     unlessM (doesDirectoryExist outDir) $ error $
@@ -170,15 +173,15 @@ listen (Listener _ inputDir outDir scriptFP) = do
     script <- loadScript scriptFP
     watcher
         inputDir
-        (listenInternal script)
+        (listenInternal hashKey script)
     where
-        listenInternal script filepath = do
-            _ <- runSingleFile script filepath $ Just outDir
+        listenInternal hashKey script filepath = do
+            _ <- runSingleFile hashKey filepath script $ Just outDir
             return ()
 
 getPaths :: GetPaths -> IO ()
 getPaths (GetPaths inputFile) =
-    print =<< run getAllPaths inputFile
+    print =<< run "" inputFile getAllPaths
 
 apiServer :: APIServer -> IO ()
 apiServer (APIServer _key port sslCrt sslKey) = do
@@ -201,16 +204,17 @@ main = do
         C5 config -> listen config
 
 runScript :: RunScript -> IO ()
-runScript (RunScript _ filepath mOutDir scriptFp) = do
+runScript (RunScript hashKeyFp filepath mOutDir scriptFp) = do
+    hashKey <- verifyHashingKey hashKeyFp
     verifyInputFile filepath
     verifyOutputDir mOutDir
     script <- loadScript scriptFp
-    _ <- runSingleFile script filepath mOutDir
+    _ <- runSingleFile hashKey filepath script mOutDir
     return ()
 
-runSingleFile :: Anonymizer Text -> FilePath -> Maybe FilePath -> IO Text
-runSingleFile script filepath mOutfile = do
-    (res,resBS) <- run script filepath
+runSingleFile :: Text -> FilePath -> Anonymizer Text -> Maybe FilePath -> IO Text
+runSingleFile hk filepath script mOutfile = do
+    (res,resBS) <- run hk filepath script
     case mOutfile of
         Just outDir -> do
             let fExt = takeExtension filepath
@@ -246,3 +250,10 @@ verifyOutputDir (Just outDir)= do
         , "Valid formats are: " ++ show validFormats
         ]
 verifyOutputDir _ = return ()
+
+verifyHashingKey :: FilePath -> IO Text
+verifyHashingKey fp = do
+    exists <- doesFileExist fp
+    unless exists $ error $
+        "Annonymizer: Hashing key Error, is not a file, got: " ++ show fp
+    T.readFile fp

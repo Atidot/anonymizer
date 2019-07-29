@@ -38,11 +38,12 @@ import qualified "bloomfilter"  Data.BloomFilter.Easy as Bloom
 
 data XMLState
     = XMLState
-    { _xmlState_mZipper    :: !(Maybe (NTZipper XNode))
-    , _xmlState_attrIndex  :: !Int
-    , _xmlState_paths      :: ![Path]
-    , _xmlState_fNameBloom :: Bloom String
+    { _xmlState_mZipper      :: !(Maybe (NTZipper XNode))
+    , _xmlState_attrIndex    :: !Int
+    , _xmlState_paths        :: ![Path]
+    , _xmlState_fNameBloom   :: Bloom String
     , _xmlState_changedPaths :: ![Path]
+    , _xmlState_hashKey      :: !Text
     } deriving (Show)
 
 instance Default XMLState where
@@ -52,6 +53,7 @@ instance Default XMLState where
         []
         (Bloom.easyList 0.01 (lines $ B.unpack namesFile))
         []
+        ""
 
 namesFile :: B.ByteString
 namesFile = $(embedFile "src/first_name.dict")
@@ -112,7 +114,6 @@ runWrap isEdit _xmlData cmd =
                 CannotEdit -> error "Cannot hash in check"
 
         _ -> run cmd
-
 run :: (MonadState XMLState m, MonadIO m, MonadMask m)
     => AnonymizerCmd (m a)
     -> m a
@@ -133,7 +134,8 @@ run  = \case
 
     (Hash next') -> do
         mZipper <- gets _xmlState_mZipper
-        xmlState_mZipper .= (hashZipper <$> mZipper)
+        hashKey <- gets _xmlState_hashKey
+        xmlState_mZipper .= (hashZipper hashKey <$> mZipper)
         addUpdatedPath mZipper
         next'
 
@@ -189,12 +191,12 @@ hasData z = hasData' xNode
         hasData' (XTag _ attrs) = not $ null attrs
         hasData' _ = False
 
-hashZipper :: NTZipper XNode -> NTZipper XNode
-hashZipper z = z { ntree = updatedNt }
+hashZipper :: Text -> NTZipper XNode -> NTZipper XNode
+hashZipper k z = z { ntree = updatedNt }
     where
         NTree val children' = fromNTZipper z
         updatedNt = case val of
-            XText t -> NTree (XText $ anonymize "what" t) children'
+            XText t -> NTree (XText $ anonymize k t) children'
             _       -> NTree val children'
 
 isMember :: Bloom String -> NTZipper XNode -> Bool

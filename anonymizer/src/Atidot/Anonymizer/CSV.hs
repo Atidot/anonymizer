@@ -37,13 +37,13 @@ data CSVState
     = CSVState
     { _csvState_header      :: ![Text]
     , _csvState_csv         :: !CSV
-
     , _csvState_current     :: !Cursor
     , _csvState_paths       :: ![Path]
     , _csvState_hashed      :: ![Cursor]
     , _csvState_encrypted   :: ![Cursor]
     , _csvState_whitelisted :: ![Cursor]
     , _csvState_blacklisted :: ![Cursor]
+    , _csvState_hashKey     :: !Text
     } deriving (Show)
 
 instance Default CSVState where
@@ -55,6 +55,7 @@ instance Default CSVState where
                    []
                    []
                    []
+                   ""
 
 makeLenses ''CSVState
 
@@ -113,7 +114,9 @@ runCSV action csvData
 
         run (Hash next') = do
             cursor <- gets _csvState_current
+            --hashKey <- gets _csvState_hashKey
             csvState_hashed <>= [cursor]
+            --anonymize hashKey cursor
             next'
 
         run (Encrypt next') = do
