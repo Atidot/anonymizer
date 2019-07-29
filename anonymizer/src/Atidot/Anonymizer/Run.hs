@@ -12,7 +12,7 @@ import                Atidot.Anonymizer.Utils
 import qualified "bytestring"   Data.ByteString.Lazy as BL
 
 
-run :: Anonymizer a -> FilePath -> IO a
+run :: Anonymizer a -> FilePath -> IO (a, BL.ByteString)
 run script filepath = do
     xml'  <- isXML filepath
     csv'  <- isCSV filepath
@@ -23,4 +23,4 @@ run script filepath = do
             | json' = flip evalStateT def $ runJSON script fileData
             | xml'  = flip evalStateT def $ runXML script fileData
             | otherwise = undefined
-    fst <$> run'
+    run'
