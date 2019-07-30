@@ -212,10 +212,25 @@ runScript (RunScript hashKeyFp filepath mOutDir scriptFp) = do
     _ <- runSingleFile hashKey filepath script mOutDir
     return ()
 
-runSingleFile :: Text -> FilePath -> Anonymizer Text -> Maybe FilePath -> IO Text
-runSingleFile hk filepath script mOutfile = do
+
+
+runNotebook ::  Text -> FilePath -> Anonymizer a -> Maybe FilePath -> IO a
+runNotebook hk filepath script mOutDir = do
     (res,resBS) <- run hk filepath script
-    case mOutfile of
+    case mOutDir of
+        Just outDir -> do
+            let fExt = takeExtension filepath
+                fName = takeBaseName filepath
+                outFile = outDir </> fName <.> "anon" <.> fExt -- TODO: add date as numerical value
+            BL.writeFile outFile resBS
+        Nothing -> return ()
+    BL8.putStrLn resBS
+    return res
+
+runSingleFile :: Text -> FilePath -> Anonymizer a -> Maybe FilePath -> IO a
+runSingleFile hk filepath script mOutDir = do
+    (res,resBS) <- run hk filepath script
+    case mOutDir of
         Just outDir -> do
             let fExt = takeExtension filepath
                 fName = takeBaseName filepath
