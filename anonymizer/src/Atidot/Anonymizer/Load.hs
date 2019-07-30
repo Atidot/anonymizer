@@ -25,8 +25,6 @@ dynamicLoad path = do
             interpret "script" (as :: Anonymizer Text)
 
 
-
--- TODO: can be eithered, and we take care of the errors outside of this scope
 verifySafeImports :: FilePath -> IO ()
 verifySafeImports path = do
     parseResult <- H.parseFile path
@@ -34,8 +32,8 @@ verifySafeImports path = do
             H.ParseOk (H.Module _ _ pragma importDecls _)  -> ( importDecls
                                                               , pragma
                                                               )
-            H.ParseFailed _ errorReason -> error errorReason -- Left errorReason
-            _ -> error "not a valid haskell module" -- Left $
+            H.ParseFailed _ errorReason -> error errorReason
+            _ -> error "not a valid haskell module"
     let importedModulesNames =  map H.importModule importedModules
     mapM_ isValidImport importedModulesNames
     mapM_ isValidExtension modulePragma
@@ -54,11 +52,6 @@ verifySafeImports path = do
             , "Atidot.Anonymizer.Monad"
             , "Data.List"
             ]
-        allowedExts =
-            [ "PackageImports"
-            , "OverloadedStrings"
-            , "LambdaCase"
-            ]
 
         isValidExtension :: Show l => H.ModulePragma l -> IO ()
         isValidExtension (H.LanguagePragma _ nms) = forM_ nms $ \case
@@ -69,6 +62,11 @@ verifySafeImports path = do
             H.Symbol _ nm -> error $ "unexpected symbol: " ++ nm
         isValidExtension mp = error $ "Pragma not supported: " ++ show mp
 
+        allowedExts =
+            [ "PackageImports"
+            , "OverloadedStrings"
+            , "LambdaCase"
+            ]
 
 
 load :: FilePath -> IO (Anonymizer Text)
