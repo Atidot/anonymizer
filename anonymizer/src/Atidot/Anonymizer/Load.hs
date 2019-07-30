@@ -1,6 +1,7 @@
 {-# LANGUAGE PackageImports #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE LambdaCase #-}
 
 module Atidot.Anonymizer.Load where
 
@@ -29,24 +30,45 @@ dynamicLoad path = do
 verifySafeImports :: FilePath -> IO ()
 verifySafeImports path = do
     parseResult <- H.parseFile path
-    let moduleNames = case parseResult of
-            H.ParseOk (H.Module _ _ _ importDecls _)  -> map H.importModule importDecls  -- Right
+    let (importedModules, modulePragma) = case parseResult of
+            H.ParseOk (H.Module _ _ pragma importDecls _)  -> ( importDecls
+                                                              , pragma
+                                                              )
             H.ParseFailed _ errorReason -> error errorReason -- Left errorReason
             _ -> error "not a valid haskell module" -- Left $
-    mapM_ checkSafety moduleNames
+    let importedModulesNames =  map H.importModule importedModules
+    mapM_ isValidImport importedModulesNames
+    mapM_ isValidExtension modulePragma
     where
-        checkSafety :: Show l => H.ModuleName l -> IO ()
-        checkSafety (H.ModuleName _ nm) =
+        isValidImport :: Show l => H.ModuleName l -> IO ()
+        isValidImport (H.ModuleName _ nm) =
             unless (nm `elem` allowedImports) $ error $ unlines $
-                ["Unallowed import: " ++ nm
-                ,"allow imports are:"
+                [ "Unallowed import: " ++ nm
+                , "Allowed imports are:"
                 ] ++ allowedImports
+
         allowedImports =
             [ "Prelude"
             , "Control.Monad.Free"
             , "Data.Text"
             , "Atidot.Anonymizer.Monad"
+            , "Data.List"
             ]
+        allowedExts =
+            [ "PackageImports"
+            , "OverloadedStrings"
+            , "LambdaCase"
+            ]
+
+        isValidExtension :: Show l => H.ModulePragma l -> IO ()
+        isValidExtension (H.LanguagePragma _ nms) = forM_ nms $ \case
+            H.Ident _ nm -> unless (nm `elem` allowedExts) $ error $ unlines $
+                [ "Unallowed language extension: " ++ nm
+                , "Allowed d language extensions are:"
+                ] ++ allowedExts
+            H.Symbol _ nm -> error $ "unexpected symbol: " ++ nm
+        isValidExtension mp = error $ "Pragma not supported: " ++ show mp
+
 
 
 load :: FilePath -> IO (Anonymizer Text)
