@@ -21,6 +21,10 @@ throwAnonymizerError :: Either AnonymizerError b -> IO ()
 throwAnonymizerError (Left (AnonymizerError err)) = putStrLn err
 throwAnonymizerError Right{} = return ()
 
+throwAnonymizerError' :: b -> Either AnonymizerError b -> IO b
+throwAnonymizerError' def (Left (AnonymizerError err)) = putStrLn err >> return def
+throwAnonymizerError' _ (Right x) = return x
+
 verifySafeImports :: H.ParseResult (H.Module H.SrcSpanInfo) -> Either AnonymizerError ()
 verifySafeImports parsedResult = do
     (importedModules, modulePragma) <- case parsedResult of
@@ -74,15 +78,8 @@ dynamicLoad path = do
 
 
 load :: FilePath -> IO (Anonymizer Text)
-load scriptPath = do
-    interpreterResult <- dynamicLoad scriptPath
-    case interpreterResult of
-        Left err -> case err of
-            WontCompile errors -> do
-                print errors
-                undefined
-            x -> do
-                print x
-                undefined
-        Right script ->
-            return script
+load scriptPath =
+    dynamicLoad scriptPath >>=
+        either
+        (throwAnonymizerError' (return "") . anonymizerError . show)
+        return
