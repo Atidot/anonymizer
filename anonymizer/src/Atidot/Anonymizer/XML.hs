@@ -19,7 +19,6 @@ import "base"           Data.Char (isSpace, toLower)
 import "data-default"   Data.Default
 import "text"           Data.Text (Text)
 import "bloomfilter"    Data.BloomFilter.Easy (Bloom)
-import "file-embed"     Data.FileEmbed (embedFile)
 import "hxt"            Data.Tree.NTree.Zipper.TypeDefs
 import "hxt"            Data.Tree.NTree.TypeDefs
 import "hxt"            Text.XML.HXT.Core
@@ -32,7 +31,6 @@ import                  Atidot.Anonymizer.Types
 import                  Atidot.Anonymizer.Utils (anonymize, removeIfExists)
 
 import qualified "bytestring"   Data.ByteString.Lazy  as BL
-import qualified "bytestring"   Data.ByteString.Char8 as B
 import qualified "text"         Data.Text             as T
 import qualified "bloomfilter"  Data.BloomFilter.Easy as Bloom
 
@@ -51,12 +49,9 @@ instance Default XMLState where
         Nothing
         0
         []
-        (Bloom.easyList 0.01 (lines $ B.unpack namesFile))
+        (Bloom.easyList 1.0 [])
         []
         ""
-
-namesFile :: B.ByteString
-namesFile = $(embedFile "src/first_name.dict")
 
 makeLenses ''XMLState
 
