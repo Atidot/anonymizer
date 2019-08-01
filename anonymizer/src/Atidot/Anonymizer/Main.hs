@@ -223,8 +223,9 @@ validFormats = ["xml","json","csv"]
 verifyInputFile :: FilePath -> IO ()
 verifyInputFile fp = do
     exists <- doesFileExist fp
-    unless (exists && isValidFormat fp) $ error $ unlines
-        [ "Annonymizer: Input File Error, got: " ++ show fp
+    unless exists $ error $ "No such file: " ++ fp
+    unless (isValidFormat fp) $ error $ unlines
+        [ "Input File Error, got: " ++ show fp
         , "Valid formats are: " ++ show validFormats
         ]
 
