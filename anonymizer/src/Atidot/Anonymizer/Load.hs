@@ -81,5 +81,5 @@ load :: FilePath -> IO (Anonymizer Text)
 load scriptPath =
     dynamicLoad scriptPath >>=
         either
-        (throwAnonymizerError' (return "") . anonymizerError . show)
+        (throwAnonymizerError' (return "") . anonymizerError . show) -- todo -- construct error script from error and return it as a default value to throwAnonymizerError'
         return

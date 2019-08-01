@@ -4,7 +4,6 @@ module Atidot.Anonymizer.Main where
 
 import "base"                 Data.Semigroup ((<>))
 import "base"                 Data.List (isSuffixOf)
-import "filepath"             System.FilePath
 import "directory"            System.Directory
 import "text"                 Data.Text (Text)
 import "optparse-applicative" Options.Applicative
@@ -18,8 +17,6 @@ import                        Atidot.Anonymizer.Server (runServer)
 import                        Atidot.Anonymizer.Swagger (printSwagger)
 
 import qualified "text"       Data.Text.IO as T
-import qualified "bytestring" Data.ByteString.Lazy as BL
-import qualified "bytestring" Data.ByteString.Lazy.Char8 as BL8
 
 data Listener = Listener
     { _listener_key    :: !FilePath
@@ -212,17 +209,6 @@ runScript (RunScript hashKeyFp filepath mOutDir scriptFp) = do
     _ <- runSingleFile hashKey filepath script mOutDir
     return ()
 
-runSingleFile :: Text -> FilePath -> Anonymizer Text -> Maybe FilePath -> IO Text
-runSingleFile hk filepath script mOutfile = do
-    (res,resBS) <- run hk filepath script
-    case mOutfile of
-        Just outDir -> do
-            let fExt = takeExtension filepath
-                fName = takeBaseName filepath
-                outFile = outDir </> fName <.> "anon" <.> fExt -- TODO: add date as numerical value
-            BL.writeFile outFile resBS
-        Nothing -> BL8.putStrLn resBS
-    return res
 
 loadScript :: Maybe FilePath -> IO (Anonymizer Text)
 loadScript = maybe (return testScript) load
@@ -237,8 +223,9 @@ validFormats = ["xml","json","csv"]
 verifyInputFile :: FilePath -> IO ()
 verifyInputFile fp = do
     exists <- doesFileExist fp
-    unless (exists && isValidFormat fp) $ error $ unlines
-        [ "Annonymizer: Input File Error, got: " ++ show fp
+    unless exists $ error $ "No such file: " ++ fp
+    unless (isValidFormat fp) $ error $ unlines
+        [ "Input File Error, got: " ++ show fp
         , "Valid formats are: " ++ show validFormats
         ]
 

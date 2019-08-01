@@ -7,6 +7,7 @@
 module Atidot.Anonymizer.CSV where
 
 import           "base"                 Control.Monad.IO.Class (MonadIO)
+import           "base"                 Control.Monad
 import           "lens"                 Control.Lens
 import           "exceptions"           Control.Monad.Catch (MonadMask, bracket)
 import           "mtl"                  Control.Monad.State.Class (MonadState, gets)
@@ -15,40 +16,47 @@ import           "data-default"         Data.Default
 import qualified "bytestring"           Data.ByteString.Lazy as BL
 import qualified "bytestring"           Data.ByteString.Char8 as B
 import qualified "unordered-containers" Data.HashMap.Lazy as HM
-import           "base"                 Data.List (sort, nub)
-import           "text"                 Data.Text (Text, pack)
-import           "vector"               Data.Vector (Vector)
-import qualified "vector"               Data.Vector as V (length, fromList, toList)
+import           "base"                 Data.List (sort, nub, transpose)
+import           "text"                 Data.Text (Text, pack, unpack)
+import qualified "vector"               Data.Vector as V (toList, fromList)
 import           "cassava"              Data.Csv hiding ((.=))
+import           "ListZipper"           Data.List.Zipper
 import                                  Atidot.Anonymizer.Monad
 import                                  Atidot.Anonymizer.Types
-
+import                                  Atidot.Anonymizer.Utils (anonymize)
+import           "base"                 Control.Arrow hiding (right)
 
 parseBoth :: (FromField a, FromField b) => (Field, Field) -> Parser (a, b)
 parseBoth (k, v) = (,) <$> parseField k <*> parseField v
 
-type NamedTextRecord = [(Text, Text)]
-instance (FromField a, FromField b, Ord a) => FromNamedRecord [(a,b)] where
-    parseNamedRecord m = (traverse parseBoth $ HM.toList m)
 
-type CSV = Vector NamedTextRecord
+type ColumnName = Text
+type CellValue = Text
+type NamedTextRecord = [(ColumnName, CellValue)]
+instance (FromField a, FromField b, Ord a) => FromNamedRecord [(a,b)] where
+    parseNamedRecord m = traverse parseBoth $ HM.toList m
+
+type CSV = Zipper NamedTextRecord
 type Cursor = (Int, Int)
+
+--TODO: header, current, can be removed
+--TODO: ensure empty case is supported
 data CSVState
     = CSVState
     { _csvState_header      :: ![Text]
-    , _csvState_csv         :: !CSV
+    , _csvState_csvZipper   :: !CSV
     , _csvState_current     :: !Cursor
     , _csvState_paths       :: ![Path]
-    , _csvState_hashed      :: ![Cursor]
-    , _csvState_encrypted   :: ![Cursor]
-    , _csvState_whitelisted :: ![Cursor]
-    , _csvState_blacklisted :: ![Cursor]
+    , _csvState_hashed      :: ![Text]
+    , _csvState_encrypted   :: ![Text]
+    , _csvState_whitelisted :: ![Text]
+    , _csvState_blacklisted :: ![Text]
     , _csvState_hashKey     :: !Text
     } deriving (Show)
 
 instance Default CSVState where
     def = CSVState []
-                   (V.fromList [])
+                   empty
                    (0,0)
                    []
                    []
@@ -70,73 +78,73 @@ runCSV action csvData
     where
         init' = do
             case decodeByName csvData of
-                Left err -> error err
                 Right (header', vss) -> do
-                    let header''     = (map (pack . B.unpack) . V.toList $ header')
-                    csvState_header .= header''
-                    csvState_csv    .= vss
+                    let header''     = map (pack . B.unpack) . V.toList $ header'
+                        cols         = fromList $ transpose $ V.toList vss
+                    csvState_header       .= header''
+                    csvState_csvZipper    .= cols
                     csvState_paths  .= map (\x -> [x]) header''
-                    return ()
+                    unless (beginp cols) $ error "csv zipper is not at the beginning"
+                Left err -> error err
             return ()
 
         fini _ = return ()
 
         body _ = do
             res <- iterM run action
-            return (res, "")
+            _modifiedCsv <- toList <$> gets _csvState_csvZipper
+            headers <- gets _csvState_header
+            let _columnValues = undefined
+                _headers' = V.fromList $ map (B.pack . unpack) headers
+                outBS = "" -- encodeByName headers' columnValues
+            return (res, outBS)
 
         run :: (MonadState CSVState m, MonadIO m, MonadMask m) => AnonymizerCmd (m a) -> m a
         run (Current return') = do
-            header'          <- gets _csvState_header
-            (_, columnIndex) <- gets _csvState_current
-            let column = header' !! columnIndex
-            let path = [column]
+
+            cursor_ <- cursor <$> gets _csvState_csvZipper
+            let columnName = getColumnName cursor_
+                path = [columnName]
             return' path
 
         run (Next return') = do
-            header'                 <- gets _csvState_header
-            (rowIndex, columnIndex) <- gets _csvState_current
-            if columnIndex < length header' - 1
-            then do
-                let newColumnIndex = columnIndex + 1
-                csvState_current .= (rowIndex, newColumnIndex)
-                return' True
+            cursor_                    <- gets _csvState_csvZipper
+            let next_ = right cursor_
+            if endp next_
+            then return' False
             else do
-                csv <- gets _csvState_csv
-                if rowIndex >= V.length csv - 1
-                then return' False
-                else do
-                    let newRowIndex = rowIndex + 1
-                    let newColumnIndex = 0
-                    csvState_current .= (newRowIndex, newColumnIndex)
-                    return' True
-
-
+                csvState_csvZipper .= next_
+                return' True
         run (Hash next') = do
-            cursor <- gets _csvState_current
-            --hashKey <- gets _csvState_hashKey
-            csvState_hashed <>= [cursor]
-            --anonymize hashKey cursor
+            zipper_ <-  gets _csvState_csvZipper
+            k <- gets _csvState_hashKey
+            let cursor_ = cursor zipper_
+                anonymize' :: Text -> Text
+                anonymize' = pack . anonymize k . unpack
+                anonymizedCursor = map (second anonymize' ) cursor_
+            csvState_csvZipper .= replace anonymizedCursor zipper_
+            csvState_hashed <>= [getColumnName cursor_]
             next'
 
-        run (Encrypt next') = do
-            cursor <- gets _csvState_current
-            csvState_encrypted <>= [cursor]
-            next'
+        run (Encrypt _next') = undefined --do
+        --     cursor <- gets _csvState_current
+        --     csvState_encrypted <>= [cursor]
+        --     next'
 
         run (Paths return') = do
             paths' <- gets _csvState_paths
             return' paths'
 
         run (ChangedPaths return') = do
-            header'   <- gets _csvState_header
             hashed    <- gets _csvState_hashed
             encrypted <- gets _csvState_encrypted
             let changedPaths'
-                    = map (\index' -> [header' !! index'])
+                    = map (:[])
                     . nub
                     . sort
-                    . snd
-                    $ (unzip hashed <> unzip encrypted)
+                    $ (hashed <> encrypted)
 
             return' changedPaths'
+
+getColumnName :: [(c, b)] -> c
+getColumnName = fst . head

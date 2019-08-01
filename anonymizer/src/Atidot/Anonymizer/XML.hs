@@ -19,7 +19,6 @@ import "base"           Data.Char (isSpace, toLower)
 import "data-default"   Data.Default
 import "text"           Data.Text (Text)
 import "bloomfilter"    Data.BloomFilter.Easy (Bloom)
-import "file-embed"     Data.FileEmbed (embedFile)
 import "hxt"            Data.Tree.NTree.Zipper.TypeDefs
 import "hxt"            Data.Tree.NTree.TypeDefs
 import "hxt"            Text.XML.HXT.Core
@@ -32,7 +31,6 @@ import                  Atidot.Anonymizer.Types
 import                  Atidot.Anonymizer.Utils (anonymize, removeIfExists)
 
 import qualified "bytestring"   Data.ByteString.Lazy  as BL
-import qualified "bytestring"   Data.ByteString.Char8 as B
 import qualified "text"         Data.Text             as T
 import qualified "bloomfilter"  Data.BloomFilter.Easy as Bloom
 
@@ -51,12 +49,9 @@ instance Default XMLState where
         Nothing
         0
         []
-        (Bloom.easyList 0.01 (lines $ B.unpack namesFile))
+        (Bloom.easyList 1.0 [])
         []
         ""
-
-namesFile :: B.ByteString
-namesFile = $(embedFile "src/first_name.dict")
 
 makeLenses ''XMLState
 
@@ -64,10 +59,10 @@ runXML :: (MonadState XMLState m, MonadIO m, MonadMask m)
        => Anonymizer a
        -> BL.ByteString
        -> m (a, BL.ByteString)
-runXML = runXMLInner CanEdit
+runXML = runXMLInner True -- can edit
 
 runXMLInner :: (MonadState XMLState m, MonadIO m, MonadMask m)
-       => IsEdit
+       => Bool
        -> Anonymizer a
        -> BL.ByteString
        -> m (a, BL.ByteString)
@@ -85,7 +80,6 @@ runXMLInner isEdit action xmlData
 
         fini _ = return ()
 
-
         writeDoc :: (MonadIO m) => FilePath -> NTree XNode -> m ()
         writeDoc fp = void . liftIO . runIOSLA (writeDocument [] fp) (XIOState initialSysState ())
 
@@ -102,18 +96,15 @@ runXMLInner isEdit action xmlData
             return (res, outBS)
 
 runWrap :: (MonadState XMLState m, MonadIO m, MonadMask m)
-    => IsEdit
+    => Bool
     -> BL.ByteString
     -> AnonymizerCmd (m a)
     -> m a
 runWrap isEdit _xmlData cmd =
     case cmd of
-        (Hash _next') ->
-            case isEdit of
-                CanEdit    -> run cmd
-                CannotEdit -> error "Cannot hash in check"
-
+        (Hash _next') | not isEdit -> error "Cannot hash in check"
         _ -> run cmd
+
 run :: (MonadState XMLState m, MonadIO m, MonadMask m)
     => AnonymizerCmd (m a)
     -> m a
