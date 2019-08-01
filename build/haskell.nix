@@ -5,7 +5,6 @@
 with nixpkgs;
 let
   isGHCJS = lib.hasPrefix "ghcjs" compiler;
-  atidotHaskellLib = import (gitRoot ./. + /devops/nix/haskell/lib.nix) {};
   ease = package: haskell.lib.doJailbreak (haskell.lib.dontHaddock (haskell.lib.dontCheck package));
 
   #----
