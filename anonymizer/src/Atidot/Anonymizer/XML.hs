@@ -59,10 +59,10 @@ runXML :: (MonadState XMLState m, MonadIO m, MonadMask m)
        => Anonymizer a
        -> BL.ByteString
        -> m (a, BL.ByteString)
-runXML = runXMLInner CanEdit
+runXML = runXMLInner True -- can edit
 
 runXMLInner :: (MonadState XMLState m, MonadIO m, MonadMask m)
-       => IsEdit
+       => Bool
        -> Anonymizer a
        -> BL.ByteString
        -> m (a, BL.ByteString)
@@ -80,7 +80,6 @@ runXMLInner isEdit action xmlData
 
         fini _ = return ()
 
-
         writeDoc :: (MonadIO m) => FilePath -> NTree XNode -> m ()
         writeDoc fp = void . liftIO . runIOSLA (writeDocument [] fp) (XIOState initialSysState ())
 
@@ -97,18 +96,15 @@ runXMLInner isEdit action xmlData
             return (res, outBS)
 
 runWrap :: (MonadState XMLState m, MonadIO m, MonadMask m)
-    => IsEdit
+    => Bool
     -> BL.ByteString
     -> AnonymizerCmd (m a)
     -> m a
 runWrap isEdit _xmlData cmd =
     case cmd of
-        (Hash _next') ->
-            case isEdit of
-                CanEdit    -> run cmd
-                CannotEdit -> error "Cannot hash in check"
-
+        (Hash _next') | not isEdit -> error "Cannot hash in check"
         _ -> run cmd
+
 run :: (MonadState XMLState m, MonadIO m, MonadMask m)
     => AnonymizerCmd (m a)
     -> m a
