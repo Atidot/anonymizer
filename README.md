@@ -61,7 +61,7 @@ docker run -it  -v /home/talz/.anonymizer-secrets:/var/.secrets --network="host"
 
 notes:
 
-* `host-secret-folder` must contain the following files: `ssl-key.key`,`ssl-cert.cert`, `hashing-key.key`
+* `host-secret-folder` must contain the following files: `ssl-key.key`,`ssl-cert.crt`, `hashing-key.key`
 * port is set defaultly to 443
 
 #### Modifing docker environment variables
