@@ -5,7 +5,6 @@ module Atidot.Anonymizer.Server where
 
 import "base"           Control.Monad.IO.Class (liftIO)
 import "text"           Data.Text (Text, pack, unpack)
-import qualified "text" Data.Text.IO as T
 import "warp"           Network.Wai.Handler.Warp ( Settings
                                                  , defaultSettings
                                                  , setPort
@@ -23,6 +22,7 @@ import                  Atidot.Anonymizer.Run
 import                  Atidot.Anonymizer.Monad (getAllPaths, getAllAnonPaths)
 
 import qualified "bytestring" Data.ByteString.Lazy.Char8 as BL8
+import qualified "text" Data.Text.IO as T
 
 
 anonymizeHandler :: Text -> Request -> Handler Text
