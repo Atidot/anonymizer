@@ -15,7 +15,7 @@ import                  Atidot.Anonymizer.Types
 
 type AnonymizeAPI authMethod
     = "anonymize" :> Capture "key" Text
-                  :> ReqBody '[PlainText] Text
+                  :> ReqBody '[JSON] Request
                   :> Post '[PlainText] Text
 
  :<|> "paths" :> ReqBody '[PlainText] Text

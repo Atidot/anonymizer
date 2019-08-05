@@ -1,5 +1,6 @@
 {-# LANGUAGE PackageImports #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RecordWildCards #-}
 module Atidot.Anonymizer.Server where
 
 import "base"           Control.Monad.IO.Class (liftIO)
@@ -15,10 +16,8 @@ import "servant-server" Servant.Server
 import                  Atidot.Anonymizer.API
 import                  Atidot.Anonymizer.Types
 
-
-
-anonymizeHandler :: Text -> Text -> Handler Text
-anonymizeHandler _key = return
+anonymizeHandler :: Text -> Request -> Handler Text
+anonymizeHandler _key Request{..} = undefined
 
 
 pathsHandler :: Text -> Handler [Path]
