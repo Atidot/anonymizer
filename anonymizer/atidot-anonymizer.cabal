@@ -85,6 +85,7 @@ library
                      , haskell-src-exts
                      , ListZipper
                      , template-haskell
+                     , time
 
   hs-source-dirs:      src
   default-language:    Haskell2010

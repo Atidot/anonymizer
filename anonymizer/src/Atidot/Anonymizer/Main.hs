@@ -10,7 +10,7 @@ import "optparse-applicative" Options.Applicative
 import "extra"                Control.Monad.Extra
 
 import                        Atidot.Anonymizer.Monad
-import                        Atidot.Anonymizer.Load (load)
+import                        Atidot.Anonymizer.Load (loadScript)
 import                        Atidot.Anonymizer.Watcher (watcher)
 import                        Atidot.Anonymizer.Run
 import                        Atidot.Anonymizer.Server (runServer)
@@ -39,8 +39,7 @@ data GetPaths
 
 data APIServer
     = APIServer
-    { _apiServer_key    :: !FilePath
-    , _apiServer_port   :: !Int
+    { _apiServer_port   :: !Int
     , _apiServer_sslCrt :: !FilePath
     , _apiServer_sslKey :: !FilePath
     }
@@ -106,13 +105,7 @@ getPathsParser = C2 <$> (GetPaths
 
 apiServerParser :: Parser Command
 apiServerParser = C3 <$> (APIServer
-    <$> strOption
-      ( long "key"
-     <> short 'k'
-     <> metavar "KEY"
-     <> help "Hashing Key"
-      )
-    <*> (read <$> (strOption
+    <$> (read <$> (strOption
       ( long "port"
      <> short 'p'
      <> metavar "PORT"
@@ -181,7 +174,7 @@ getPaths (GetPaths inputFile) =
     print =<< run "" inputFile getAllPaths
 
 apiServer :: APIServer -> IO ()
-apiServer (APIServer _key port sslCrt sslKey) = do
+apiServer (APIServer port sslCrt sslKey) = do
     runServer port sslCrt sslKey
     return ()
 
@@ -209,9 +202,6 @@ runScript (RunScript hashKeyFp filepath mOutDir scriptFp) = do
     _ <- runSingleFile hashKey filepath script mOutDir
     return ()
 
-
-loadScript :: Maybe FilePath -> IO (Anonymizer Text)
-loadScript = maybe (return testScript) load
 
 isValidFormat :: FilePath -> Bool
 isValidFormat fp = (`isSuffixOf` fp) `any` validFormats
