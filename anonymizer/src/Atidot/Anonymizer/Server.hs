@@ -20,33 +20,28 @@ import                  Atidot.Anonymizer.API
 import                  Atidot.Anonymizer.Types
 import                  Atidot.Anonymizer.Load
 import                  Atidot.Anonymizer.Run
+import                  Atidot.Anonymizer.Monad (getAllPaths, getAllAnonPaths)
 
---import qualified "bytestring" Data.ByteString.Lazy as BL
 import qualified "bytestring" Data.ByteString.Lazy.Char8 as BL8
 
 
 anonymizeHandler :: Text -> Request -> Handler Text
 anonymizeHandler hk Request{..} = liftIO $ do
-    now <- getCurrentTime
-    let replaceSpace ' ' = '_'
-        replaceSpace c = c
-        tempName = map replaceSpace $ takeWhile ('.' /=) $ show now
-        tempPath = "/tmp" </> tempName <.> "xml"
-    T.writeFile tempPath requestData
+    tempPath <- makeTempFile requestData
     script <- loadScript $ Just $ unpack requestScript
     pack . BL8.unpack . snd <$> run hk tempPath script
 
 
-
 pathsHandler :: Text -> Handler [Path]
-pathsHandler file = do
-    liftIO $ print file
-    return [["a"], ["b"], ["c"]]
+pathsHandler reqData = liftIO $ do
+    tempPath <- makeTempFile reqData
+    fst <$> run "" tempPath getAllPaths
+
 
 anonymizedPathsHandler :: Text -> Handler [Path]
-anonymizedPathsHandler _file = do
-    liftIO $ print "here3"
-    return [["a"], ["b"], ["c"]]
+anonymizedPathsHandler reqData = liftIO $ do
+    tempPath <- makeTempFile reqData
+    fst <$> run "" tempPath getAllAnonPaths
 
 
 server :: Server (AnonymizeAPI ())
@@ -69,3 +64,14 @@ runServer port sslCrt sslKey = do
             = setPort port
             $ setTimeout 1800
             $ defaultSettings
+
+
+makeTempFile :: Text -> IO FilePath
+makeTempFile reqData = do
+    now <- getCurrentTime
+    let replaceSpace ' ' = '_'
+        replaceSpace c = c
+        tempName = map replaceSpace $ takeWhile ('.' /=) $ show now
+        tempPath = "/tmp" </> tempName <.> "xml"
+    T.writeFile tempPath reqData
+    return tempPath

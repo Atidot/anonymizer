@@ -39,6 +39,12 @@ getAllPaths = do
     whileNext $ return ()
     paths
 
+getAllAnonPaths :: Anonymizer [Path]
+getAllAnonPaths = do
+    whileNext $ return ()
+    changedPaths
+
+
 anonymizeAll :: Anonymizer Text
 anonymizeAll = do
     whileNext hash
