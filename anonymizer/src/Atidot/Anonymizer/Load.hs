@@ -9,7 +9,7 @@ import "text"     Data.Text (Text)
 import "filepath" System.FilePath (takeBaseName)
 import "hint"     Language.Haskell.Interpreter
 import "base"     Control.Monad
-import            Atidot.Anonymizer.Monad (Anonymizer)
+import            Atidot.Anonymizer.Monad (Anonymizer, testScript)
 import qualified "haskell-src-exts" Language.Haskell.Exts as H
 
 data AnonymizerError = AnonymizerError String
@@ -83,3 +83,7 @@ load scriptPath =
         either
         (throwAnonymizerError' (return "") . anonymizerError . show) -- todo -- construct error script from error and return it as a default value to throwAnonymizerError'
         return
+
+ -- TODO: testscript should roll the error
+loadScript :: Maybe FilePath -> IO (Anonymizer Text)
+loadScript = maybe (return testScript) load

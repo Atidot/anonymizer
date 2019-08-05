@@ -10,7 +10,7 @@ import "optparse-applicative" Options.Applicative
 import "extra"                Control.Monad.Extra
 
 import                        Atidot.Anonymizer.Monad
-import                        Atidot.Anonymizer.Load (load)
+import                        Atidot.Anonymizer.Load (loadScript)
 import                        Atidot.Anonymizer.Watcher (watcher)
 import                        Atidot.Anonymizer.Run
 import                        Atidot.Anonymizer.Server (runServer)
@@ -210,8 +210,7 @@ runScript (RunScript hashKeyFp filepath mOutDir scriptFp) = do
     return ()
 
 
-loadScript :: Maybe FilePath -> IO (Anonymizer Text)
-loadScript = maybe (return testScript) load
+
 
 isValidFormat :: FilePath -> Bool
 isValidFormat fp = (`isSuffixOf` fp) `any` validFormats

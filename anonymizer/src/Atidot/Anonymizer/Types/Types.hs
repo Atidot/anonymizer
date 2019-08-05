@@ -10,6 +10,6 @@ type Path = [Text]
 
 data IsEdit = CanEdit | CannotEdit
 
-data Request = Request { _requestScript :: Text
-                       , _requestData :: Text
+data Request = Request { requestScript :: Text
+                       , requestData :: Text
                        } deriving (Generic)
