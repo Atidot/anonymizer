@@ -39,8 +39,8 @@ getAllPaths = do
     whileNext $ return ()
     paths
 
-getAllAnonPaths :: Anonymizer [Path]
-getAllAnonPaths = do
+getAllChangedPaths :: Anonymizer [Path]
+getAllChangedPaths = do
     whileNext $ return ()
     changedPaths
 

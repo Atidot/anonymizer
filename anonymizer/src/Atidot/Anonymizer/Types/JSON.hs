@@ -3,6 +3,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+
 module Atidot.Anonymizer.Types.JSON where
 
 import           "aeson"             Data.Aeson

@@ -12,4 +12,5 @@ data IsEdit = CanEdit | CannotEdit
 
 data Request = Request { requestScript :: Text
                        , requestData :: Text
+                       , requestKey :: Text
                        } deriving (Generic)

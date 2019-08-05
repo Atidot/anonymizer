@@ -203,8 +203,6 @@ runScript (RunScript hashKeyFp filepath mOutDir scriptFp) = do
     return ()
 
 
-
-
 isValidFormat :: FilePath -> Bool
 isValidFormat fp = (`isSuffixOf` fp) `any` validFormats
 

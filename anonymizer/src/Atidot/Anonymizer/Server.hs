@@ -4,7 +4,7 @@
 module Atidot.Anonymizer.Server where
 
 import "base"           Control.Monad.IO.Class (liftIO)
-import "text"           Data.Text (Text, pack, unpack)
+import "text"           Data.Text (Text)
 import "warp"           Network.Wai.Handler.Warp ( Settings
                                                  , defaultSettings
                                                  , setPort
@@ -13,23 +13,22 @@ import "warp"           Network.Wai.Handler.Warp ( Settings
 import "warp-tls"       Network.Wai.Handler.WarpTLS (tlsSettings, runTLS)
 import "servant"        Servant.API
 import "servant-server" Servant.Server
-import "filepath"       System.FilePath
-import "time"           Data.Time
+import "temporary"      System.IO.Temp
 import                  Atidot.Anonymizer.API
 import                  Atidot.Anonymizer.Types
 import                  Atidot.Anonymizer.Load
 import                  Atidot.Anonymizer.Run
-import                  Atidot.Anonymizer.Monad (getAllPaths, getAllAnonPaths)
+import                  Atidot.Anonymizer.Monad (getAllPaths, getAllChangedPaths)
 
 import qualified "bytestring" Data.ByteString.Lazy.Char8 as BL8
-import qualified "text" Data.Text.IO as T
+import qualified "text" Data.Text as T (pack, unpack)
 
 
-anonymizeHandler :: Text -> Request -> Handler Text
-anonymizeHandler hk Request{..} = liftIO $ do
+anonymizeHandler :: Request -> Handler Text
+anonymizeHandler Request{..} = liftIO $ do
     tempPath <- makeTempFile requestData
-    script <- loadScript $ Just $ unpack requestScript
-    pack . BL8.unpack . snd <$> run hk tempPath script
+    script <- loadScript $ Just $ T.unpack requestScript
+    T.pack . BL8.unpack . snd <$> run requestKey tempPath script
 
 
 pathsHandler :: Text -> Handler [Path]
@@ -41,7 +40,7 @@ pathsHandler reqData = liftIO $ do
 anonymizedPathsHandler :: Text -> Handler [Path]
 anonymizedPathsHandler reqData = liftIO $ do
     tempPath <- makeTempFile reqData
-    fst <$> run "" tempPath getAllAnonPaths
+    fst <$> run "" tempPath getAllChangedPaths
 
 
 server :: Server (AnonymizeAPI ())
@@ -67,11 +66,12 @@ runServer port sslCrt sslKey = do
 
 
 makeTempFile :: Text -> IO FilePath
-makeTempFile reqData = do
-    now <- getCurrentTime
-    let replaceSpace ' ' = '_'
-        replaceSpace c = c
-        tempName = map replaceSpace $ takeWhile ('.' /=) $ show now
-        tempPath = "/tmp" </> tempName <.> "xml"
-    T.writeFile tempPath reqData
-    return tempPath
+makeTempFile = writeTempFile "/tmp" "anonymizer" . T.unpack
+    -- do
+    -- now <- getCurrentTime
+    -- let replaceSpace ' ' = '_'
+    --     replaceSpace c = c
+    --     tempName = map replaceSpace $ takeWhile ('.' /=) $ show now
+    --     tempPath = "/tmp" </> tempName <.> "xml"
+    -- T.writeFile tempPath reqData
+    -- return tempPath
