@@ -32,7 +32,6 @@ nixpkgs.dockerTools.buildImage {
             "atidot-anonymizer" "api"
             "--sslKey" ''''${SSL_KEY:=${secrets-dir}/ssl-key.key}''
             "--sslCrt" ''''${SSL_CERT:=${secrets-dir}/ssl-cert.crt}''
-            "--key"    ''''${HASH_KEY:=${secrets-dir}/hashing-key.key}''
             "--port"   ''''${PORT:=443}''
           ] )] ;
       };
