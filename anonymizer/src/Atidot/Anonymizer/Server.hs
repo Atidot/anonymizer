@@ -66,12 +66,4 @@ runServer port sslCrt sslKey = do
 
 
 makeTempFile :: Text -> IO FilePath
-makeTempFile = writeTempFile "/tmp" "anonymizer" . T.unpack
-    -- do
-    -- now <- getCurrentTime
-    -- let replaceSpace ' ' = '_'
-    --     replaceSpace c = c
-    --     tempName = map replaceSpace $ takeWhile ('.' /=) $ show now
-    --     tempPath = "/tmp" </> tempName <.> "xml"
-    -- T.writeFile tempPath reqData
-    -- return tempPath
+makeTempFile = writeTempFile "/tmp" "anonymizer-handler.xml" . T.unpack
