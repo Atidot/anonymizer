@@ -19,3 +19,6 @@ swagger:
 
 shell:
 	nix-shell ${NIX_FLAGS} default.nix
+
+package:
+	nix-build ${NIX_FLAGS} package.nix

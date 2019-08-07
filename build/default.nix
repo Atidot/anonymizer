@@ -11,13 +11,15 @@ let
 
 in
 stdenv.mkDerivation rec {
-  name = "atidot-anonymizer";
+  name = "${pname}-${version}";
+  pname = "atidot-anonymizer";
+  version = "0.1.0";
 
   env = buildEnv { name = name; paths = buildInputs; };
   builder = builtins.toFile "builder.sh" ''
     source $stdenv/setup; ln -s $env $out
   '';
-
+  doHaddock = true;
   buildInputs = [
     haskellEnv
   ];
