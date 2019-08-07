@@ -2,7 +2,9 @@
 , compiler ? "ghc844"
 }:
 with nixpkgs;
+
 let
-    anonymizer = import ./default.nix {nixpkgs = nixpkgs; compiler = compiler;};
+  haskellPackages = import ./haskell.nix { inherit nixpkgs compiler; };
+  atidot-anonymizer' = haskell.lib.doHaddock haskellPackages.atidot-anonymizer;
 in
-   pkgs.haskell.lib.sdistTarball anonymizer
+   pkgs.haskell.lib.sdistTarball atidot-anonymizer'
