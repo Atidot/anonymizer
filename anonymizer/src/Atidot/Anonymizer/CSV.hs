@@ -126,7 +126,7 @@ runCSV action csvData
             csvState_hashed <>= [getColumnName cursor_]
             next'
 
-        run (Encrypt _next') = undefined --do
+        run (Encrypt _next') = anonymizerError "Encryption is not yet supported for CSV" --do
         --     cursor <- gets _csvState_current
         --     csvState_encrypted <>= [cursor]
         --     next'

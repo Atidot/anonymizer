@@ -28,4 +28,4 @@ runJSON _action _data
 
         fini _ = return ()
 
-        body _ = undefined
+        body _ = anonymizerError "JSON format is not yet supported"

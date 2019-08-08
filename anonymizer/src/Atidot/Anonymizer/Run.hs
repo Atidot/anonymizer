@@ -47,12 +47,12 @@ runSingleFile hk filepath script mOutDir = do
 run :: Text -> FilePath -> Anonymizer a -> IO (a, BL.ByteString)
 run hk filepath script = do
     xml'  <- isXML filepath
-    csv'  <- isCSV filepath
+    --csv'  <- isCSV filepath
     json' <- isJSON filepath
     fileData <- BL.readFile filepath
     let run'
-            | csv'  = flip evalStateT def{_csvState_hashKey = hk} $ runCSV script fileData
+           -- | csv'  = flip evalStateT def{_csvState_hashKey = hk} $ runCSV script fileData
             | json' = flip evalStateT def $ runJSON script fileData
             | xml'  = flip evalStateT def{_xmlState_hashKey = hk} $ runXML script fileData
-            | otherwise = undefined
+            | otherwise = AnonymizerError $ "unsupported file format: " ++ show filepath
     run'

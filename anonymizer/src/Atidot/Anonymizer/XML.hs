@@ -136,7 +136,7 @@ run  = \case
     (ChangedPaths return') ->
         return' =<< gets _xmlState_changedPaths
 
-    (Encrypt _next')       -> undefined
+    (Encrypt _next')       -> anonymizerError "encryption is not supported yet"
 
 getNodeName :: NTZipper XNode -> Maybe Text
 getNodeName z = getName' $ fromNTZipper z
