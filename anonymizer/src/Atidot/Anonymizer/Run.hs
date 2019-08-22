@@ -3,6 +3,7 @@
 module Atidot.Anonymizer.Run where
 
 import "mtl"          Control.Monad.State (evalStateT)
+import "base"         Control.Monad
 import "data-default" Data.Default (def)
 import "text"         Data.Text (Text)
 import "filepath"     System.FilePath
@@ -15,11 +16,15 @@ import                Atidot.Anonymizer.Utils
 import qualified "bytestring" Data.ByteString.Lazy as BL
 import qualified "bytestring" Data.ByteString.Lazy.Char8 as BL8
 
-runExample :: FilePath -> Anonymizer a -> IO a
-runExample filepath script = runNotebook "hashkey" filepath script Nothing
+  -- doesnt print
+runExample' :: FilePath -> Anonymizer a -> IO a
+runExample' filepath script = runNotebook False "hashkey" filepath script Nothing
 
-runNotebook ::  Text -> FilePath -> Anonymizer a -> Maybe FilePath -> IO a
-runNotebook hk filepath script mOutDir = do
+runExample :: FilePath -> Anonymizer a -> IO a
+runExample filepath script = runNotebook True "hashkey" filepath script Nothing
+
+runNotebook :: Bool -> Text -> FilePath -> Anonymizer a -> Maybe FilePath -> IO a
+runNotebook doPrint hk filepath script mOutDir = do
     (res,resBS) <- run hk filepath script
     case mOutDir of
         Just outDir -> do
@@ -28,7 +33,7 @@ runNotebook hk filepath script mOutDir = do
                 outFile = outDir </> fName <.> "anon" <.> fExt -- TODO: add date as numerical value
             BL.writeFile outFile resBS
         Nothing -> return ()
-    BL8.putStrLn resBS
+    when doPrint $ BL8.putStrLn resBS
     return res
 
 runSingleFile :: Text -> FilePath -> Anonymizer a -> Maybe FilePath -> IO a
